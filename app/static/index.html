@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Downloader - 24/7 Windows Server</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <p id="loading-text">Loading...</p>
+  </div>
+
+  <!-- Setup Wizard Modal -->
+  <div id="wizard-modal" class="modal-overlay hidden">
+    <div class="modal-card wizard-card">
+      <div class="wizard-header">
+        <div class="wizard-badge">First-Run Setup</div>
+        <h2 id="wizard-step-title">Welcome to Telegram Downloader</h2>
+        <div class="wizard-steps-indicator" id="wizard-steps-indicator">
+          <span class="step-dot active" data-step="1">1</span>
+          <span class="step-dot" data-step="2">2</span>
+          <span class="step-dot" data-step="3">3</span>
+          <span class="step-dot" data-step="4">4</span>
+          <span class="step-dot" data-step="5">5</span>
+          <span class="step-dot" data-step="6">6</span>
+        </div>
+      </div>
+
+      <div class="wizard-body">
+        <!-- Step 1: Welcome -->
+        <div class="wizard-step-pane active" id="wizard-pane-1">
+          <div class="welcome-hero">
+            <div class="hero-icon">⚡</div>
+            <h3>24/7 Automated Telegram Server</h3>
+            <p>This setup wizard will configure your administrator credentials, storage paths, and Telegram connection in a few quick steps.</p>
+          </div>
+          <div class="wizard-actions">
+            <button class="btn btn-primary" onclick="window.Wizard.nextStep()">Get Started →</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Admin Account -->
+        <div class="wizard-step-pane" id="wizard-pane-2">
+          <h3>Create Administrator Account</h3>
+          <p class="text-muted">Set up the master administrator account for dashboard access.</p>
+          <div class="form-group">
+            <label>Admin Username</label>
+            <input type="text" id="wiz-username" class="form-input" placeholder="admin" value="admin">
+          </div>
+          <div class="form-group">
+            <label>Password (min 6 characters)</label>
+            <input type="password" id="wiz-password" class="form-input" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label>Confirm Password</label>
+            <input type="password" id="wiz-password-confirm" class="form-input" placeholder="••••••••">
+          </div>
+          <div class="wizard-actions">
+            <button class="btn btn-secondary" onclick="window.Wizard.prevStep()">Back</button>
+            <button class="btn btn-primary" onclick="window.Wizard.validateStep2()">Next: Storage →</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Storage -->
+        <div class="wizard-step-pane" id="wizard-pane-3">
+          <h3>Download Storage Location</h3>
+          <p class="text-muted">Select an approved drive or folder where media files will be saved.</p>
+          <div class="form-group">
+            <label>Download Directory Path</label>
+            <div class="input-with-button">
+              <input type="text" id="wiz-download-dir" class="form-input" placeholder="D:\TelegramDownloads">
+              <button class="btn btn-secondary" onclick="window.App.openFolderPicker('wiz-download-dir')">Browse...</button>
+            </div>
+            <small class="form-help">Ensure the destination drive has sufficient free space and write permissions.</small>
+          </div>
+          <div id="wiz-storage-status" class="alert alert-info">Checking drive availability...</div>
+          <div class="wizard-actions">
+            <button class="btn btn-secondary" onclick="window.Wizard.prevStep()">Back</button>
+            <button class="btn btn-primary" onclick="window.Wizard.validateStep3()">Next: Telegram →</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Telegram Setup -->
+        <div class="wizard-step-pane" id="wizard-pane-4">
+          <h3>Telegram API Configuration</h3>
+          <p class="text-muted">Obtain your API credentials from <a href="https://my.telegram.org/apps" target="_blank" class="text-link">my.telegram.org/apps</a>.</p>
+          <div class="alert alert-warning">
+            <strong>Important:</strong> Enter your <code>api_id</code> (numeric App ID) and <code>api_hash</code>. Do <em>NOT</em> enter a bot token or user ID.
+          </div>
+          <div class="form-group">
+            <label>Telegram API ID</label>
+            <input type="number" id="wiz-api-id" class="form-input" placeholder="e.g. 28941234">
+          </div>
+          <div class="form-group">
+            <label>Telegram API Hash</label>
+            <input type="text" id="wiz-api-hash" class="form-input" placeholder="e.g. 3a89e9d91f8...">
+          </div>
+          <div class="form-group">
+            <label>Phone Number (with country code)</label>
+            <input type="text" id="wiz-phone" class="form-input" placeholder="+1234567890">
+          </div>
+          <div class="wizard-actions">
+            <button class="btn btn-secondary" onclick="window.Wizard.prevStep()">Back</button>
+            <button class="btn btn-primary" onclick="window.Wizard.validateStep4()">Next: Jellyfin →</button>
+          </div>
+        </div>
+
+        <!-- Step 5: Optional Jellyfin -->
+        <div class="wizard-step-pane" id="wizard-pane-5">
+          <h3>Jellyfin Integration (Optional)</h3>
+          <p class="text-muted">Automatically notify Jellyfin to scan your library after media downloads finish.</p>
+          <div class="form-group">
+            <label>Jellyfin Server URL</label>
+            <input type="text" id="wiz-jellyfin-url" class="form-input" placeholder="http://192.168.1.50:8096">
+          </div>
+          <div class="form-group">
+            <label>Jellyfin API Key</label>
+            <input type="text" id="wiz-jellyfin-key" class="form-input" placeholder="Optional API Key">
+          </div>
+          <div class="form-group form-check">
+            <input type="checkbox" id="wiz-jellyfin-auto" class="form-checkbox">
+            <label for="wiz-jellyfin-auto">Auto-trigger library scan on download completion</label>
+          </div>
+          <div class="wizard-actions">
+            <button class="btn btn-secondary" onclick="window.Wizard.prevStep()">Back</button>
+            <button class="btn btn-primary" onclick="window.Wizard.nextStep()">Next: Review →</button>
+          </div>
+        </div>
+
+        <!-- Step 6: Review & Finish -->
+        <div class="wizard-step-pane" id="wizard-pane-6">
+          <h3>Review & Finalize</h3>
+          <p class="text-muted">Verify your settings before saving.</p>
+          <div class="review-table" id="wiz-review-summary"></div>
+          <div class="wizard-actions">
+            <button class="btn btn-secondary" onclick="window.Wizard.prevStep()">Back</button>
+            <button class="btn btn-success" onclick="window.Wizard.submitSetup()">Complete Setup & Launch →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div id="login-modal" class="modal-overlay hidden">
+    <div class="modal-card auth-card">
+      <div class="auth-header">
+        <div class="auth-icon">🔒</div>
+        <h2>Sign In</h2>
+        <p class="text-muted">Enter administrator credentials to manage Telegram Downloader.</p>
+      </div>
+      <form id="login-form" onsubmit="window.App.handleLogin(event)">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="login-username" class="form-input" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="login-password" class="form-input" required autocomplete="current-password">
+        </div>
+        <div id="login-error" class="alert alert-danger hidden"></div>
+        <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Folder Picker Modal -->
+  <div id="folder-picker-modal" class="modal-overlay hidden">
+    <div class="modal-card folder-picker-card">
+      <div class="modal-header">
+        <h3>Select Folder</h3>
+        <button class="close-btn" onclick="window.App.closeModal('folder-picker-modal')">&times;</button>
+      </div>
+      <div class="folder-picker-body">
+        <div class="folder-nav-bar">
+          <span class="folder-current-path" id="picker-current-path">Drives</span>
+          <button class="btn btn-sm btn-secondary" id="picker-up-btn" onclick="window.App.navigateFolderUp()">⬆ Up</button>
+        </div>
+        <div class="folder-list" id="picker-folder-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="window.App.closeModal('folder-picker-modal')">Cancel</button>
+        <button class="btn btn-primary" onclick="window.App.selectCurrentFolder()">Choose This Folder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Source Modal -->
+  <div id="add-source-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Add Telegram Source</h3>
+        <button class="close-btn" onclick="window.App.closeModal('add-source-modal')">&times;</button>
+      </div>
+      <form onsubmit="window.App.handleAddSource(event)">
+        <div class="form-group">
+          <label>Telegram Channel / Group / Chat ID</label>
+          <div class="input-with-button">
+            <input type="text" id="src-telegram-id" class="form-input" placeholder="@channel or https://t.me/... or -100..." required>
+            <button type="button" class="btn btn-secondary" onclick="window.App.testSourceLookup()">Verify</button>
+          </div>
+          <small class="form-help">Enter public username, invite link, or numeric chat ID.</small>
+        </div>
+        <div id="src-lookup-result" class="alert alert-info hidden"></div>
+        <div class="form-group">
+          <label>Custom Title (Optional)</label>
+          <input type="text" id="src-title" class="form-input" placeholder="Leave blank to auto-detect">
+        </div>
+        <div class="form-group">
+          <label>Custom Subfolder (Optional)</label>
+          <input type="text" id="src-subfolder" class="form-input" placeholder="e.g. Movies or Anime">
+        </div>
+        <div class="form-group">
+          <label>Media Types to Download</label>
+          <div class="checkbox-grid">
+            <label><input type="checkbox" id="src-dl-videos" checked> Videos</label>
+            <label><input type="checkbox" id="src-dl-docs" checked> Documents</label>
+            <label><input type="checkbox" id="src-dl-audio" checked> Audio</label>
+            <label><input type="checkbox" id="src-dl-archives" checked> Archives (zip/rar)</label>
+            <label><input type="checkbox" id="src-dl-images"> Images / Photos</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="window.App.closeModal('add-source-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Source</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Telegram OTP / 2FA Modal -->
+  <div id="tg-auth-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="tg-auth-title">Telegram Verification</h3>
+        <button class="close-btn" onclick="window.App.closeModal('tg-auth-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="tg-otp-pane">
+          <p class="text-muted">Enter the login code sent to your Telegram app or SMS.</p>
+          <div class="form-group">
+            <label>Verification Code</label>
+            <input type="text" id="tg-auth-code" class="form-input" placeholder="12345" autocomplete="one-time-code">
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.App.closeModal('tg-auth-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="window.App.submitTelegramCode()">Submit Code</button>
+          </div>
+        </div>
+        <div id="tg-2fa-pane" class="hidden">
+          <p class="text-muted">Two-Factor Authentication (2FA) is enabled on your account. Enter your password.</p>
+          <div class="form-group">
+            <label>2FA Password</label>
+            <input type="password" id="tg-auth-password" class="form-input" placeholder="••••••••">
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.App.closeModal('tg-auth-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="window.App.submitTelegramPassword()">Verify Password</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Application Layout -->
+  <div id="app-layout" class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">📥</div>
+        <div class="brand-text">
+          <span class="brand-title">Telegram Downloader</span>
+          <span class="brand-subtitle">Windows 11 Server</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#dashboard" class="nav-item active" data-view="dashboard">
+          <span class="nav-icon">📊</span> <span class="nav-label">Dashboard</span>
+        </a>
+        <a href="#telegram" class="nav-item" data-view="telegram">
+          <span class="nav-icon">✈️</span> <span class="nav-label">Telegram</span>
+          <span id="nav-tg-badge" class="badge badge-warning">...</span>
+        </a>
+        <a href="#downloads" class="nav-item" data-view="downloads">
+          <span class="nav-icon">💾</span> <span class="nav-label">Downloads</span>
+          <span id="nav-dl-badge" class="badge badge-info">0</span>
+        </a>
+        <a href="#storage" class="nav-item" data-view="storage">
+          <span class="nav-icon">💽</span> <span class="nav-label">Storage</span>
+        </a>
+        <a href="#sources" class="nav-item" data-view="sources">
+          <span class="nav-icon">📡</span> <span class="nav-label">Telegram Sources</span>
+        </a>
+        <a href="#jellyfin" class="nav-item" data-view="jellyfin">
+          <span class="nav-icon">🍿</span> <span class="nav-label">Jellyfin</span>
+        </a>
+        <a href="#logs" class="nav-item" data-view="logs">
+          <span class="nav-icon">📜</span> <span class="nav-label">Logs</span>
+        </a>
+        <a href="#settings" class="nav-item" data-view="settings">
+          <span class="nav-icon">⚙️</span> <span class="nav-label">Settings</span>
+        </a>
+        <a href="#system" class="nav-item" data-view="system">
+          <span class="nav-icon">🖥️</span> <span class="nav-label">System / Service</span>
+        </a>
+        <a href="#about" class="nav-item" data-view="about">
+          <span class="nav-icon">ℹ️</span> <span class="nav-label">About</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-pill">
+          <span class="user-avatar">👤</span>
+          <span id="user-display-name" class="user-name">admin</span>
+        </div>
+        <button class="btn-logout" title="Sign Out" onclick="window.App.logout()">🚪</button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Header Bar -->
+      <header class="top-header">
+        <div class="header-left">
+          <button class="mobile-toggle-btn" onclick="window.App.toggleSidebar()">☰</button>
+          <h1 id="page-heading">Dashboard</h1>
+        </div>
+        <div class="header-right">
+          <div class="status-indicator-pill" id="header-service-status">
+            <span class="status-dot dot-green"></span>
+            <span>Service: Running</span>
+          </div>
+          <div class="status-indicator-pill" id="header-tg-status">
+            <span class="status-dot dot-yellow"></span>
+            <span>Telegram: Connecting</span>
+          </div>
+          <div class="speed-pill" id="header-speed">
+            <span>⚡ 0 B/s</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Views Container -->
+      <div class="views-wrapper">
+
+        <!-- 1. DASHBOARD VIEW -->
+        <section id="view-dashboard" class="view-pane active">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon icon-blue">📥</div>
+              <div class="stat-data">
+                <span class="stat-label">Active Downloads</span>
+                <span class="stat-value" id="dash-active-count">0</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon icon-green">✅</div>
+              <div class="stat-data">
+                <span class="stat-label">Completed</span>
+                <span class="stat-value" id="dash-completed-count">0</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon icon-purple">⚡</div>
+              <div class="stat-data">
+                <span class="stat-label">Current Speed</span>
+                <span class="stat-value" id="dash-speed">0 B/s</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon icon-amber">💽</div>
+              <div class="stat-data">
+                <span class="stat-label">Free Storage</span>
+                <span class="stat-value" id="dash-free-space">--</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="content-grid-2">
+            <!-- Active Downloads Card -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Live Download Queue</h3>
+                <a href="#downloads" class="btn btn-sm btn-secondary">View All</a>
+              </div>
+              <div class="card-body">
+                <div id="dash-active-downloads-list" class="active-jobs-list">
+                  <p class="empty-state">No active downloads in progress.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Server Quick Status -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Server & Connectivity</h3>
+              </div>
+              <div class="card-body">
+                <div class="status-rows">
+                  <div class="status-row">
+                    <span class="row-label">Windows Service</span>
+                    <span class="badge badge-success" id="dash-svc-badge">Running (Auto)</span>
+                  </div>
+                  <div class="status-row">
+                    <span class="row-label">Telegram Account</span>
+                    <span class="badge badge-warning" id="dash-tg-badge">Disconnected</span>
+                  </div>
+                  <div class="status-row">
+                    <span class="row-label">Monitored Sources</span>
+                    <span class="text-bold" id="dash-sources-count">0 sources</span>
+                  </div>
+                  <div class="status-row">
+                    <span class="row-label">Server Uptime</span>
+                    <span class="text-bold" id="dash-uptime">0s</span>
+                  </div>
+                  <div class="status-row">
+                    <span class="row-label">Download Directory</span>
+                    <span class="text-muted font-mono" id="dash-download-dir">Not set</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Errors Card -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <h3>Recent Download Errors</h3>
+            </div>
+            <div class="card-body">
+              <div id="dash-recent-errors-list">
+                <p class="empty-state">No recent errors recorded.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. TELEGRAM VIEW -->
+        <section id="view-telegram" class="view-pane">
+          <div class="card">
+            <div class="card-header">
+              <h3>Telegram Connection & MTProto Status</h3>
+              <div id="tg-action-buttons">
+                <button class="btn btn-danger btn-sm" onclick="window.App.logoutTelegram()">Logout Session</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="status-grid-2">
+                <div class="status-box">
+                  <span class="box-label">Connection State</span>
+                  <div class="box-val-row">
+                    <span class="status-dot dot-yellow" id="tg-status-dot"></span>
+                    <span class="box-val" id="tg-status-text">Disconnected</span>
+                  </div>
+                </div>
+                <div class="status-box">
+                  <span class="box-label">Logged In User</span>
+                  <span class="box-val" id="tg-user-text">None</span>
+                </div>
+              </div>
+
+              <div class="divider my-4"></div>
+
+              <h4>Update API Credentials</h4>
+              <p class="text-muted">Manage your Telegram API ID and Hash. API ID must be the 32-bit integer from <a href="https://my.telegram.org/apps" target="_blank" class="text-link">my.telegram.org</a>.</p>
+              <form onsubmit="window.App.handleTelegramConfig(event)" class="mt-3">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label>Telegram API ID</label>
+                    <input type="number" id="tg-cfg-api-id" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Telegram API Hash</label>
+                    <input type="text" id="tg-cfg-api-hash" class="form-input" required>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Phone Number (e.g. +1234567890)</label>
+                  <input type="text" id="tg-cfg-phone" class="form-input" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Connect & Send Code</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. DOWNLOADS VIEW -->
+        <section id="view-downloads" class="view-pane">
+          <div class="card">
+            <div class="card-header">
+              <h3>Download Manager</h3>
+              <div class="header-actions">
+                <button class="btn btn-sm btn-secondary" onclick="window.App.loadDownloads()">🔄 Refresh</button>
+                <button class="btn btn-sm btn-danger" onclick="window.App.clearCompletedDownloads()">Clear Completed</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <!-- Filter Tabs -->
+              <div class="filter-tabs" id="dl-filter-tabs">
+                <button class="filter-tab active" data-filter="ALL">All (<span id="tab-cnt-all">0</span>)</button>
+                <button class="filter-tab" data-filter="DOWNLOADING">Downloading (<span id="tab-cnt-dl">0</span>)</button>
+                <button class="filter-tab" data-filter="QUEUED">Queued (<span id="tab-cnt-q">0</span>)</button>
+                <button class="filter-tab" data-filter="COMPLETED">Completed (<span id="tab-cnt-comp">0</span>)</button>
+                <button class="filter-tab" data-filter="FAILED">Failed (<span id="tab-cnt-fail">0</span>)</button>
+                <button class="filter-tab" data-filter="RETRYING">Retrying (<span id="tab-cnt-retry">0</span>)</button>
+              </div>
+
+              <!-- Table -->
+              <div class="table-responsive mt-3">
+                <table class="data-table" id="downloads-table">
+                  <thead>
+                    <tr>
+                      <th>Filename</th>
+                      <th>Source</th>
+                      <th>Size</th>
+                      <th>Status</th>
+                      <th>Progress</th>
+                      <th>Speed / ETA</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="downloads-tbody">
+                    <tr><td colspan="7" class="text-center">Loading downloads...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. STORAGE VIEW -->
+        <section id="view-storage" class="view-pane">
+          <div class="card">
+            <div class="card-header">
+              <h3>Approved Storage & Drive Health</h3>
+            </div>
+            <div class="card-body">
+              <h4>Current Download Destination</h4>
+              <div class="input-with-button mt-2">
+                <input type="text" id="storage-current-dir" class="form-input" readonly>
+                <button class="btn btn-primary" onclick="window.App.openFolderPicker('storage-current-dir', true)">Change Location...</button>
+              </div>
+
+              <div class="divider my-4"></div>
+
+              <h4>Detected Windows Drives</h4>
+              <div class="drives-grid mt-3" id="storage-drives-list">
+                <!-- Dynamically populated drive cards -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. TELEGRAM SOURCES VIEW -->
+        <section id="view-sources" class="view-pane">
+          <div class="card">
+            <div class="card-header">
+              <h3>Monitored Telegram Channels & Groups</h3>
+              <button class="btn btn-primary btn-sm" onclick="window.App.openModal('add-source-modal')">+ Add Source</button>
+            </div>
+            <div class="card-body">
+              <p class="text-muted">The application monitors these sources and automatically queues incoming media according to your filter rules.</p>
+              <div class="sources-grid mt-3" id="sources-list">
+                <p class="empty-state">No Telegram sources registered yet.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. JELLYFIN VIEW -->
+        <section id="view-jellyfin" class="view-pane">
+          <div class="card">
+            <div class="card-header">
+              <h3>Jellyfin Media Server Integration</h3>
+              <button class="btn btn-secondary btn-sm" onclick="window.App.testJellyfin()">Test Connection</button>
+            </div>
+            <div class="card-body">
+              <p class="text-muted">Automatically triggers a library refresh scan whenever a video or audio file completes downloading.</p>
+              <form onsubmit="window.App.saveJellyfinConfig(event)" class="mt-3">
+                <div class="form-group">
+                  <label>Jellyfin Server URL</label>
+                  <input type="text" id="jf-url" class="form-input" placeholder="http://192.168.1.50:8096">
+                </div>
+                <div class="form-group">
+                  <label>API Key</label>
+                  <input type="text" id="jf-key" class="form-input" placeholder="Generated from Jellyfin Dashboard -> API Keys">
+                </div>
+                <div class="form-group form-check">
+                  <input type="checkbox" id="jf-auto-refresh" class="form-checkbox">
+                  <label for="jf-auto-refresh">Auto-trigger library scan when downloads finish</label>
+                </div>
+                <div id="jf-test-status" class="alert alert-info hidden"></div>
+                <div class="actions-row mt-3">
+                  <button type="submit" class="btn btn-primary">Save Settings</button>
+                  <button type="button" class="btn btn-secondary" onclick="window.App.triggerJellyfinRefresh()">Trigger Scan Now</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- 7. LOGS VIEW -->
+        <section id="view-logs" class="view-pane">
+          <div class="card">
+            <div class="card-header">
+              <h3>System & Application Logs</h3>
+              <div class="header-actions">
+                <select id="log-level-filter" class="form-select" onchange="window.App.loadLogs()">
+                  <option value="ALL">All Levels</option>
+                  <option value="INFO">INFO</option>
+                  <option value="WARNING">WARNING</option>
+                  <option value="ERROR">ERROR</option>
+                </select>
+                <button class="btn btn-sm btn-secondary" onclick="window.App.downloadLogFile()">⬇ Download Log</button>
+                <button class="btn btn-sm btn-secondary" onclick="window.App.clearLogConsole()">Clear View</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="log-console-wrapper">
+                <div id="log-console" class="log-console"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 8. SETTINGS VIEW -->
+        <section id="view-settings" class="view-pane">
+          <div class="card">
+            <div class="card-header">
+              <h3>Application & Server Configuration</h3>
+            </div>
+            <div class="card-body">
+              <form onsubmit="window.App.saveGeneralSettings(event)">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label>Dashboard Host</label>
+                    <input type="text" id="set-host" class="form-input">
+                  </div>
+                  <div class="form-group">
+                    <label>Dashboard Port</label>
+                    <input type="number" id="set-port" class="form-input">
+                  </div>
+                  <div class="form-group">
+                    <label>Max Concurrent Downloads</label>
+                    <input type="number" id="set-concurrency" class="form-input" min="1" max="10">
+                  </div>
+                  <div class="form-group">
+                    <label>Free Space Threshold (MB)</label>
+                    <input type="number" id="set-space-threshold" class="form-input" min="100">
+                  </div>
+                  <div class="form-group">
+                    <label>Max Download Retries</label>
+                    <input type="number" id="set-max-retries" class="form-input" min="0" max="10">
+                  </div>
+                  <div class="form-group">
+                    <label>Retry Delay (Seconds)</label>
+                    <input type="number" id="set-retry-delay" class="form-input" min="1" max="300">
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">Save Server Settings</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- 9. SYSTEM / SERVICE VIEW -->
+        <section id="view-system" class="view-pane">
+          <div class="card">
+            <div class="card-header">
+              <h3>Windows 11 Service & Host Metrics</h3>
+            </div>
+            <div class="card-body">
+              <div class="system-metrics-grid">
+                <div class="metric-box">
+                  <span class="box-label">CPU Utilization</span>
+                  <span class="box-val" id="sys-cpu-val">0%</span>
+                  <div class="progress-bar-bg"><div class="progress-bar-fill" id="sys-cpu-bar" style="width: 0%"></div></div>
+                </div>
+                <div class="metric-box">
+                  <span class="box-label">RAM Utilization</span>
+                  <span class="box-val" id="sys-ram-val">0%</span>
+                  <div class="progress-bar-bg"><div class="progress-bar-fill" id="sys-ram-bar" style="width: 0%"></div></div>
+                </div>
+              </div>
+
+              <div class="divider my-4"></div>
+
+              <h4>Host & Environment Details</h4>
+              <div class="details-table mt-2">
+                <div class="detail-row"><span>Service Name:</span><strong class="font-mono">TelegramDownloader</strong></div>
+                <div class="detail-row"><span>Startup Mode:</span><strong>Automatic (Starts with Windows)</strong></div>
+                <div class="detail-row"><span>App Version:</span><strong id="sys-app-ver">1.0.0</strong></div>
+                <div class="detail-row"><span>Python Runtime:</span><strong id="sys-py-ver">--</strong></div>
+                <div class="detail-row"><span>Operating System:</span><strong id="sys-os-ver">--</strong></div>
+                <div class="detail-row"><span>App Data Directory:</span><strong class="font-mono" id="sys-data-dir">--</strong></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 10. ABOUT VIEW -->
+        <section id="view-about" class="view-pane">
+          <div class="card">
+            <div class="card-header">
+              <h3>About Telegram Downloader</h3>
+            </div>
+            <div class="card-body">
+              <div class="about-hero">
+                <h2>Telegram Downloader for Windows 11</h2>
+                <p class="text-muted">Version 1.0.0 (Production 24/7 Edition)</p>
+              </div>
+              <p>A production-ready Windows 11 24/7 background media downloader and monitor service. Built with FastAPI, Telethon, SQLite WAL mode, and native Windows Service architecture.</p>
+              
+              <h4 class="mt-4">Features & Architecture</h4>
+              <ul>
+                <li>⚡ <strong>24/7 Windows Background Service:</strong> Operates continuously without a logged-in user.</li>
+                <li>🛡️ <strong>Safe Storage & Atomic Writes:</strong> Downloads stream to <code>.part</code> files, verify integrity, and rename atomically.</li>
+                <li>🔄 <strong>Crash & Reboot Recovery:</strong> Interrupted downloads automatically resume on startup without losing queue state.</li>
+                <li>🌐 <strong>Tailscale & LAN Ready:</strong> Accessible across your home network and remote VPN mesh.</li>
+                <li>🍿 <strong>Jellyfin Media Sync:</strong> Automated library scans upon completion of video and music files.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="/static/js/wizard.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
