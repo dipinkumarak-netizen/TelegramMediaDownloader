@@ -83,9 +83,11 @@ def main():
         run_tray()
     elif args.service:
         try:
-            import win32serviceutil
+            import servicemanager
             from app.service.windows_service import TelegramDownloaderWindowsService
-            win32serviceutil.HandleCommandLine(TelegramDownloaderWindowsService)
+            servicemanager.Initialize()
+            servicemanager.PrepareToHostSingle(TelegramDownloaderWindowsService)
+            servicemanager.StartServiceCtrlDispatcher()
         except Exception as e:
             print(f"[-] Windows Service Dispatch Error: {e}")
     else:

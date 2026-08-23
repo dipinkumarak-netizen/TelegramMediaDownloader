@@ -75,3 +75,8 @@ DEFAULT_DOWNLOAD_CHUNK_SIZE = 1024 * 1024  # 1 MB
 # Telegram Protocol Constants
 TELEGRAM_MAX_SIGNED_32BIT_INT = 2147483647
 TELEGRAM_MIN_SIGNED_32BIT_INT = 1
+
+# Windows Service Constants
+SERVICE_NAME = "TelegramDownloader"
+SERVICE_DISPLAY_NAME = "Telegram Downloader"
+SERVICE_DESCRIPTION = "24/7 background Telegram media downloader and monitor service."

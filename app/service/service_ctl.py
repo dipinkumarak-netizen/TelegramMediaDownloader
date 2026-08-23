@@ -2,11 +2,10 @@
 
 import os
 import sys
-import subprocess
 import logging
 from typing import Dict, Any
 
-from app import __service_name__, __service_display_name__
+from app.constants import SERVICE_NAME, SERVICE_DISPLAY_NAME, SERVICE_DESCRIPTION
 
 try:
     import win32serviceutil
@@ -33,7 +32,7 @@ def get_service_status() -> Dict[str, Any]:
         return {"installed": False, "status": "WIN32_UNAVAILABLE", "message": "pywin32 not installed."}
 
     try:
-        status = win32serviceutil.QueryServiceStatus(__service_name__)
+        status = win32serviceutil.QueryServiceStatus(SERVICE_NAME)
         state = status[1]
         state_map = {
             win32service.SERVICE_STOPPED: "STOPPED",
@@ -65,12 +64,23 @@ def install_service(exe_path: str = None) -> bool:
 
     from app.service.windows_service import TelegramDownloaderWindowsService
     try:
-        print(f"[*] Registering Windows Service '{__service_name_}' (Automatic startup)...")
+        if getattr(sys, "frozen", False):
+            exe_path = exe_path or sys.executable
+            exe_args = "--service"
+        else:
+            exe_path = exe_path or sys.executable
+            exe_args = f'"{os.path.abspath(sys.argv[0])}" --service'
+
+        print(f"[*] Registering Windows Service '{SERVICE_NAME}' (Automatic startup)...")
+        cls_string = win32serviceutil.GetServiceClassString(TelegramDownloaderWindowsService)
         win32serviceutil.InstallService(
-            TelegramDownloaderWindowsService,
-            __service_name_,
-            __service_display_name_,
+            cls_string,
+            SERVICE_NAME,
+            SERVICE_DISPLAY_NAME,
             startType=win32service.SERVICE_AUTO_START,
+            exeName=exe_path,
+            exeArgs=exe_args,
+            description=SERVICE_DESCRIPTION,
         )
         print("[+] Service registered successfully.")
         return True
@@ -84,8 +94,8 @@ def start_service() -> bool:
     if not WIN32_AVAILABLE:
         return False
     try:
-        print(f"[*] Starting Windows Service '{__service_name_}'...")
-        win32serviceutil.StartService(__service_name_)
+        print(f"[*] Starting Windows Service '{SERVICE_NAME}'...")
+        win32serviceutil.StartService(SERVICE_NAME)
         print("[+] Service start signal sent.")
         return True
     except Exception as e:
@@ -98,8 +108,8 @@ def stop_service() -> bool:
     if not WIN32_AVAILABLE:
         return False
     try:
-        print(f"[*] Stopping Windows Service '{__service_name_}'...")
-        win32serviceutil.StopService(__service_name_)
+        print(f"[*] Stopping Windows Service '{SERVICE_NAME}'...")
+        win32serviceutil.StopService(SERVICE_NAME)
         print("[+] Service stop signal sent.")
         return True
     except Exception as e:
@@ -112,8 +122,8 @@ def restart_service() -> bool:
     if not WIN32_AVAILABLE:
         return False
     try:
-        print(f"[*] Restarting Windows Service '{__service_name_}'...")
-        win32serviceutil.RestartService(__service_name_)
+        print(f"[*] Restarting Windows Service '{SERVICE_NAME}'...")
+        win32serviceutil.RestartService(SERVICE_NAME)
         print("[+] Service restarted.")
         return True
     except Exception as e:
@@ -126,8 +136,8 @@ def remove_service() -> bool:
     if not WIN32_AVAILABLE:
         return False
     try:
-        print(f"[*] Removing Windows Service '{__service_name_}'...")
-        win32serviceutil.RemoveService(__service_name_)
+        print(f"[*] Removing Windows Service '{SERVICE_NAME}'...")
+        win32serviceutil.RemoveService(SERVICE_NAME)
         print("[+] Service removed.")
         return True
     except Exception as e:

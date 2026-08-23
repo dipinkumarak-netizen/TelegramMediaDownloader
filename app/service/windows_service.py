@@ -17,7 +17,7 @@ try:
 except ImportError:
     WIN32_AVAILABLE = False
 
-from app import __service_name__, __service_display_name__, __service_description__
+from app.constants import SERVICE_NAME, SERVICE_DISPLAY_NAME, SERVICE_DESCRIPTION
 from app.config import settings
 
 logger = logging.getLogger("TelegramDownloaderService")
@@ -26,9 +26,9 @@ logger = logging.getLogger("TelegramDownloaderService")
 if WIN32_AVAILABLE:
     class TelegramDownloaderWindowsService(win32serviceutil.ServiceFramework):
         """Native Windows Background Service running FastAPI and Telegram worker."""
-        _svc_name_ = __service_name_
-        _svc_display_name_ = __service_display_name_
-        _svc_description_ = __service_description_
+        _svc_name_ = SERVICE_NAME
+        _svc_display_name_ = SERVICE_DISPLAY_NAME
+        _svc_description_ = SERVICE_DESCRIPTION
 
         def __init__(self, args):
             super().__init__(args)
@@ -40,10 +40,9 @@ if WIN32_AVAILABLE:
             """Called by Windows Service Control Manager to stop the service."""
             self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
             servicemanager.LogInfoMsg(f"{self._svc_display_name_} stopping...")
-            win32event.SetEvent(self.stop_event)
-
             if self.server:
                 self.server.should_exit = True
+            win32event.SetEvent(self.stop_event)
 
         def SvcDoRun(self):
             """Main service execution entrypoint."""
@@ -63,8 +62,12 @@ if WIN32_AVAILABLE:
             logger.info(f"Windows Service {self._svc_display_name_} stopped.")
 
         def _run_uvicorn_server(self):
+            import asyncio
             import uvicorn
             from app.main import app
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
             config = uvicorn.Config(
                 app=app,
@@ -72,9 +75,14 @@ if WIN32_AVAILABLE:
                 port=settings.port,
                 log_level=settings.log_level.lower(),
                 access_log=False,
+                loop="asyncio",
             )
             self.server = uvicorn.Server(config)
-            self.server.run()
+            # Avoid signal handler registration in background service thread
+            self.server.install_signal_handlers = lambda: None
+            loop.run_until_complete(self.server.serve())
 else:
     class TelegramDownloaderWindowsService:
-        pass
+        _svc_name_ = SERVICE_NAME
+        _svc_display_name_ = SERVICE_DISPLAY_NAME
+        _svc_description_ = SERVICE_DESCRIPTION
