@@ -29,7 +29,10 @@ A production-grade, 24/7 background media downloader and monitor service designe
 
 ## 🚀 Quick Start
 
-### 1. Run from Windows Binary
+### 1. One-Click Windows Installer (Recommended)
+Download and run **[`installer/TelegramDownloader-Setup.exe`](installer/TelegramDownloader-Setup.exe)** to automatically install the application, configure directory permissions, and register the 24/7 background Windows service.
+
+### 2. Run from Standalone Executable
 ```cmd
 TelegramDownloader.exe
 ```

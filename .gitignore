@@ -33,6 +33,7 @@ MANIFEST
 # Installer output
 Output/
 *.exe
+!installer/TelegramDownloader-Setup.exe
 
 # Environments
 venv/
