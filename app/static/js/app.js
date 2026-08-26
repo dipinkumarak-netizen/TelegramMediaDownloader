@@ -96,25 +96,49 @@ window.App = (function () {
       const setupStatus = await apiCall("/api/auth/setup-status");
       hideLoading();
 
-      if (!setupStatus.is_setup_completed) {
-        // Show first-run setup wizard
-        document.getElementById("wizard-modal").classList.remove("hidden");
-        window.Wizard.init();
-        return;
-      }
-
-      // Check current session
+      // Check current session or default admin
       try {
         const user = await apiCall("/api/auth/me");
         currentUser = user;
         document.getElementById("user-display-name").innerText = user.username;
         await initDashboard();
       } catch (e) {
-        showLoginModal();
+        if (setupStatus.is_setup_completed) {
+          showLoginModal();
+        } else {
+          // Unconfigured state: allow full access to dashboard and settings
+          currentUser = { username: "admin" };
+          document.getElementById("user-display-name").innerText = "admin";
+          await initDashboard();
+        }
       }
+
+      updateConfigBanner(setupStatus);
     } catch (e) {
       hideLoading();
       toast("Error contacting server: " + e.message, "error");
+    }
+  }
+
+  function updateConfigBanner(status) {
+    const banner = document.getElementById("dash-config-banner");
+    const msg = document.getElementById("dash-config-msg");
+    if (!banner) return;
+
+    if (!status.is_telegram_configured && !status.download_dir) {
+      banner.classList.remove("hidden");
+      if (msg) msg.innerText = "Telegram API credentials and Download storage folder are not configured yet.";
+    } else if (!status.is_telegram_configured) {
+      banner.classList.remove("hidden");
+      if (msg) msg.innerText = "Telegram API credentials are not configured yet. Enter API ID & Hash in the Telegram tab.";
+    } else if (!status.is_telegram_authenticated) {
+      banner.classList.remove("hidden");
+      if (msg) msg.innerText = "Telegram account is not connected yet. Sign in via phone/code in the Telegram tab.";
+    } else if (!status.download_dir) {
+      banner.classList.remove("hidden");
+      if (msg) msg.innerText = "Download storage directory is not selected yet. Choose a download folder in the Storage tab.";
+    } else {
+      banner.classList.add("hidden");
     }
   }
 
@@ -142,6 +166,29 @@ window.App = (function () {
       hideLoading();
       errEl.innerText = err.message;
       errEl.classList.remove("hidden");
+    }
+  }
+
+  async function handleSetAdminPassword(e) {
+    e.preventDefault();
+    const user = document.getElementById("set-admin-user").value.trim() || "admin";
+    const pass = document.getElementById("set-admin-pass").value;
+    if (!pass || pass.length < 4) {
+      toast("Password must be at least 4 characters long.", "error");
+      return;
+    }
+
+    try {
+      showLoading("Saving administrator credentials...");
+      const res = await apiCall("/api/auth/set-password", "POST", { username: user, password: pass });
+      hideLoading();
+      toast(res.message || "Administrator password saved!", "success");
+      document.getElementById("set-admin-pass").value = "";
+      currentUser = { username: res.username };
+      document.getElementById("user-display-name").innerText = res.username;
+    } catch (e) {
+      hideLoading();
+      toast(e.message, "error");
     }
   }
 
@@ -205,6 +252,12 @@ window.App = (function () {
       document.getElementById("dash-download-dir").innerText = stats.storage.download_dir || "Not configured";
       document.getElementById("dash-sources-count").innerText = `${stats.sources.enabled} of ${stats.sources.total} active`;
       document.getElementById("dash-uptime").innerText = stats.system.uptime_formatted;
+
+      updateConfigBanner({
+        is_telegram_configured: stats.telegram.is_configured,
+        is_telegram_authenticated: stats.telegram.is_authorized,
+        download_dir: stats.storage.download_dir,
+      });
 
       // Header pills
       const tgStatusEl = document.getElementById("header-tg-status");
@@ -1065,6 +1118,7 @@ window.App = (function () {
 
   return {
     init,
+    switchView,
     apiCall,
     toast,
     showLoading,
@@ -1073,6 +1127,7 @@ window.App = (function () {
     closeModal,
     toggleSidebar,
     handleLogin,
+    handleSetAdminPassword,
     logout,
     initDashboard,
     loadDashboard,

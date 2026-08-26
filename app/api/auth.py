@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 
 from fastapi import APIRouter, Request, Response, HTTPException, status, Depends
+from pydantic import BaseModel
 
 from app import __version__
 from app.config import settings, save_config
@@ -50,6 +51,48 @@ async def get_setup_status():
         is_telegram_configured=bool(settings.telegram_api_id and settings.telegram_api_hash),
         is_telegram_authenticated=bool(telegram_service.state.value == "CONNECTED"),
     )
+
+
+class SetPasswordRequest(BaseModel):
+    username: str = "admin"
+    password: str
+
+
+@router.post("/set-password")
+async def set_admin_password(payload: SetPasswordRequest, request: Request, response: Response):
+    """Sets or updates the administrator credentials."""
+    username = payload.username.strip() or "admin"
+    if len(payload.password) < 4:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 4 characters.")
+
+    hashed_pwd = hash_password(payload.password)
+    existing = await db.fetch_one("SELECT id FROM admins LIMIT 1;")
+    if existing:
+        await db.execute("UPDATE admins SET username = ?, password_hash = ? WHERE id = ?;", (username, hashed_pwd, existing["id"]))
+        admin_id = existing["id"]
+    else:
+        admin_id = await db.execute_insert("INSERT INTO admins (username, password_hash) VALUES (?, ?);", (username, hashed_pwd))
+
+    token = generate_session_token()
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d %H:%M:%S")
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    user_agent = request.headers.get("User-Agent", "unknown")
+
+    await db.execute(
+        "INSERT INTO sessions (token, user_id, expires_at, ip_address, user_agent) VALUES (?, ?, ?, ?, ?);",
+        (token, admin_id, expires_at, client_ip, user_agent)
+    )
+
+    response.set_cookie(
+        key="tg_session",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=7 * 86400,
+        secure=False,
+    )
+
+    return {"status": "success", "message": "Administrator credentials saved successfully.", "token": token, "username": username}
 
 
 @router.post("/setup")

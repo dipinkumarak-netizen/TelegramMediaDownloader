@@ -21,7 +21,14 @@ async def get_current_admin(
     cookie_token: Optional[str] = Depends(cookie_sec),
     bearer_token: Optional[HTTPAuthorizationCredentials] = Depends(bearer_sec),
 ) -> AdminUser:
-    """Authenticates admin user from session cookie or Authorization Bearer header."""
+    """Authenticates admin user from session cookie or Authorization Bearer header.
+    If no admin account is configured yet (fresh install), allows unauthenticated access.
+    """
+    admin_exists = await db.fetch_one("SELECT id, username FROM admins LIMIT 1;")
+    if not admin_exists:
+        # Fresh install or unconfigured state: grant default access
+        return AdminUser(id=0, username="admin", created_at="", last_login=None)
+
     token = None
     if cookie_token:
         token = cookie_token
