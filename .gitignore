@@ -69,3 +69,12 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
+
+# Temporary & Diagnostics Scripts
+*.ps1
+src/
+diagnose_tg.py
+test_tg_network.py
+test_tg_sni.py
+update_hosts.py
+

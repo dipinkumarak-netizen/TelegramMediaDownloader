@@ -48,6 +48,10 @@ def build_standalone():
         "--hidden-import=win32service",
         "--hidden-import=win32serviceutil",
         "--hidden-import=win32event",
+        "--hidden-import=cryptg",
+        "--hidden-import=app.services.fast_telethon",
+        "--hidden-import=argon2",
+        "--hidden-import=argon2_cffi_bindings",
         "--clean",
         str(PROJECT_ROOT / "run.py"),
     ]

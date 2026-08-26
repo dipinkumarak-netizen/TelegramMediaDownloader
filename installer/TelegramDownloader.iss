@@ -3,7 +3,7 @@
 #define MyAppName "Telegram Downloader"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Telegram Downloader Project"
-#define MyAppURL "https://github.com/dipinkumarak-netizen/Telegram_downloder.git"
+#define MyAppURL "https://github.com/dipinkumarak-netizen/TelegramMediaDownloader.git"
 #define MyAppExeName "TelegramDownloader.exe"
 
 [Setup]

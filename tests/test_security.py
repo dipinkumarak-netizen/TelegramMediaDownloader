@@ -20,6 +20,10 @@ def test_password_hashing():
     assert verify_password(pwd, hashed) is True
     assert verify_password("WrongPassword", hashed) is False
 
+    # Test Argon2 verification
+    argon2_hash = "$argon2id$v=19$m=65536,t=3,p=4$fgEXKlYYI1PKsfxG6qZLkg$pYPYxEZw40PGRUeQLSGuUpnxQ1VskX7Q1r8WoEkIFoU"
+    assert verify_password("wrong_test_pwd", argon2_hash) is False
+
 
 def test_session_token_generation():
     token1 = generate_session_token()

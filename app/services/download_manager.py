@@ -25,6 +25,7 @@ from app.core.storage import (
 from app.services.telegram_service import telegram_service
 from app.services.source_manager import source_manager
 from app.services.jellyfin_service import jellyfin_service
+from app.services.fast_telethon import fast_download
 
 logger = logging.getLogger(__name__)
 
@@ -299,11 +300,13 @@ class DownloadManager:
                 await self._mark_failed(job_id, "Message or media no longer exists on Telegram.", retryable=False)
                 return
 
-            # Execute Telethon download
-            await telegram_service.client.download_media(
+            # Execute high-speed FastTelethon parallel download with fallback
+            await fast_download(
+                telegram_service.client,
                 message,
-                file=str(temp_path),
-                progress_callback=progress_callback
+                out_file=str(temp_path),
+                progress_callback=progress_callback,
+                workers=settings.download_workers,
             )
 
             # Finalize file atomically

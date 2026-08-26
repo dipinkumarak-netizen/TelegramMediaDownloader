@@ -27,6 +27,7 @@ from app.constants import (
     DEFAULT_FREE_SPACE_THRESHOLD_MB,
     DEFAULT_MAX_RETRIES,
     DEFAULT_RETRY_DELAY_SECONDS,
+    DEFAULT_DOWNLOAD_WORKERS,
     TELEGRAM_MAX_SIGNED_32BIT_INT,
     TELEGRAM_MIN_SIGNED_32BIT_INT,
 )
@@ -53,6 +54,7 @@ class AppSettings(BaseSettings):
 
     # Download Engine Settings
     max_concurrent_downloads: int = Field(default=DEFAULT_MAX_CONCURRENT_DOWNLOADS)
+    download_workers: int = Field(default=DEFAULT_DOWNLOAD_WORKERS)
     free_space_threshold_mb: int = Field(default=DEFAULT_FREE_SPACE_THRESHOLD_MB)
     max_retries: int = Field(default=DEFAULT_MAX_RETRIES)
     retry_delay_seconds: int = Field(default=DEFAULT_RETRY_DELAY_SECONDS)

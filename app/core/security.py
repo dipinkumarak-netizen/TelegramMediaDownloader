@@ -17,6 +17,13 @@ _MAX_FAILED_ATTEMPTS = 5
 _WINDOW_SECONDS = 5 * 60  # 5 minutes window
 
 
+try:
+    import argon2
+    _ARGON2_HASHER = argon2.PasswordHasher()
+except ImportError:
+    _ARGON2_HASHER = None
+
+
 def hash_password(password: str) -> str:
     """Hashes a plaintext password securely using direct bcrypt with salt."""
     pwd_bytes = password.encode("utf-8")[:72]  # bcrypt standard limit
@@ -25,11 +32,28 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifies a plaintext password against a stored bcrypt hash."""
+    """Verifies a plaintext password against a stored bcrypt or argon2 hash."""
+    if not plain_password or not hashed_password:
+        return False
     try:
-        pwd_bytes = plain_password.encode("utf-8")[:72]
-        hash_bytes = hashed_password.encode("utf-8")
-        return bcrypt.checkpw(pwd_bytes, hash_bytes)
+        if hashed_password.startswith("$argon2"):
+            if _ARGON2_HASHER:
+                try:
+                    return _ARGON2_HASHER.verify(hashed_password, plain_password)
+                except argon2.exceptions.VerifyMismatchError:
+                    return False
+            # Fallback to passlib if argon2-cffi object not initialized directly
+            try:
+                from passlib.hash import argon2 as passlib_argon2
+                return passlib_argon2.verify(plain_password, hashed_password)
+            except Exception:
+                return False
+        elif hashed_password.startswith(("$2b$", "$2a$", "$2y$")):
+            pwd_bytes = plain_password.encode("utf-8")[:72]
+            hash_bytes = hashed_password.encode("utf-8")
+            return bcrypt.checkpw(pwd_bytes, hash_bytes)
+        else:
+            return False
     except Exception:
         return False
 
