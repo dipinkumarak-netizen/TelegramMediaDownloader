@@ -64,6 +64,16 @@ def install_service(exe_path: str = None) -> bool:
 
     from app.service.windows_service import TelegramDownloaderWindowsService
     try:
+        # If service already exists, remove it first to update ImagePath cleanly
+        try:
+            win32serviceutil.StopService(SERVICE_NAME)
+        except Exception:
+            pass
+        try:
+            win32serviceutil.RemoveService(SERVICE_NAME)
+        except Exception:
+            pass
+
         if getattr(sys, "frozen", False):
             exe_path = exe_path or sys.executable
             exe_args = "--service"
@@ -71,7 +81,7 @@ def install_service(exe_path: str = None) -> bool:
             exe_path = exe_path or sys.executable
             exe_args = f'"{os.path.abspath(sys.argv[0])}" --service'
 
-        print(f"[*] Registering Windows Service '{SERVICE_NAME}' (Automatic startup)...")
+        print(f"[*] Registering Windows Service '{SERVICE_NAME}' ({exe_path})...")
         cls_string = win32serviceutil.GetServiceClassString(TelegramDownloaderWindowsService)
         win32serviceutil.InstallService(
             cls_string,

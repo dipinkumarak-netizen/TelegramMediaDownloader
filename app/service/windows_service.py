@@ -46,6 +46,12 @@ if WIN32_AVAILABLE:
 
         def SvcDoRun(self):
             """Main service execution entrypoint."""
+            try:
+                from app.core.logger import setup_logging
+                setup_logging(settings.log_level)
+            except Exception:
+                pass
+
             servicemanager.LogMsg(
                 servicemanager.EVENTLOG_INFORMATION_TYPE,
                 servicemanager.PYS_SERVICE_STARTED,
@@ -62,25 +68,47 @@ if WIN32_AVAILABLE:
             logger.info(f"Windows Service {self._svc_display_name_} stopped.")
 
         def _run_uvicorn_server(self):
-            import asyncio
-            import uvicorn
-            from app.main import app
+            try:
+                import io
+                import os
+                import sys
 
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+                # Fix Windows Service Null stdout/stderr
+                if sys.stdout is None:
+                    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+                if sys.stderr is None:
+                    sys.stderr = open(os.devnull, "w", encoding="utf-8")
 
-            config = uvicorn.Config(
-                app=app,
-                host=settings.host,
-                port=settings.port,
-                log_level=settings.log_level.lower(),
-                access_log=False,
-                loop="asyncio",
-            )
-            self.server = uvicorn.Server(config)
-            # Avoid signal handler registration in background service thread
-            self.server.install_signal_handlers = lambda: None
-            loop.run_until_complete(self.server.serve())
+                import asyncio
+                import uvicorn
+                from app.main import app
+
+                # Ensure Windows ProactorEventLoop policy for Telethon and Uvicorn
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+                config = uvicorn.Config(
+                    app=app,
+                    host=settings.host,
+                    port=settings.port,
+                    log_level=settings.log_level.lower(),
+                    log_config=None,  # Prevent uvicorn from trying to use colourized stdout formatter
+                    access_log=False,
+                    loop="asyncio",
+                )
+                self.server = uvicorn.Server(config)
+                # Avoid signal handler registration in background service thread
+                self.server.install_signal_handlers = lambda: None
+                logger.info(f"Windows Service listening on http://{settings.host}:{settings.port}")
+                loop.run_until_complete(self.server.serve())
+            except Exception as e:
+                logger.critical(f"FATAL: Windows Service Uvicorn Server error: {e}", exc_info=True)
+                if WIN32_AVAILABLE:
+                    try:
+                        servicemanager.LogErrorMsg(f"FATAL: Windows Service Uvicorn Server error: {e}")
+                    except Exception:
+                        pass
 else:
     class TelegramDownloaderWindowsService:
         _svc_name_ = SERVICE_NAME

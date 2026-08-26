@@ -66,10 +66,11 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
     )
 
     # 1. Console Handler (stdout)
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(numeric_level)
-    console_handler.setFormatter(formatter)
-    root_logger.addHandler(console_handler)
+    if sys.stdout is not None:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(numeric_level)
+        console_handler.setFormatter(formatter)
+        root_logger.addHandler(console_handler)
 
     # 2. Rotating File Handler (10MB per file, 5 backups)
     try:
