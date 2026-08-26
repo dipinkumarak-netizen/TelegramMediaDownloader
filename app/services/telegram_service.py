@@ -333,6 +333,56 @@ class TelegramService:
             "source_type": source_type,
         }
 
+    async def discover_dialogs(self) -> List[Dict[str, Any]]:
+        """Discovers all Telegram channels, supergroups, and groups the logged in account belongs to."""
+        if not self.client or not self.client.is_connected() or self.state != TelegramAuthState.CONNECTED:
+            raise ValueError("Telegram is not connected or authorized. Please sign in to Telegram first.")
+
+        from telethon import utils
+
+        dialogs = []
+        try:
+            async for dialog in self.client.iter_dialogs():
+                entity = getattr(dialog, "entity", None)
+                if entity is None or getattr(dialog, "archived", False):
+                    continue
+
+                kind = None
+                username = None
+                if isinstance(entity, Channel):
+                    kind = "SUPERGROUP" if entity.megagroup else "CHANNEL"
+                    username = entity.username
+                elif isinstance(entity, Chat):
+                    kind = "GROUP"
+                elif isinstance(entity, User):
+                    if getattr(entity, "is_self", False):
+                        kind = "SAVED_MESSAGES"
+                    else:
+                        continue
+                else:
+                    continue
+
+                try:
+                    peer_id = str(utils.get_peer_id(entity))
+                except Exception:
+                    peer_id = str(getattr(entity, "id", ""))
+
+                title = str(getattr(dialog, "name", None) or getattr(entity, "title", None) or peer_id)
+                unread_count = getattr(dialog, "unread_count", 0)
+
+                dialogs.append({
+                    "telegram_id": peer_id,
+                    "title": title,
+                    "username": username,
+                    "source_type": kind,
+                    "unread_count": unread_count,
+                })
+        except Exception as e:
+            logger.error(f"Error discovering Telegram dialogs: {e}", exc_info=True)
+            raise ValueError(f"Failed to fetch Telegram dialogs: {str(e)}")
+
+        return dialogs
+
     def register_message_listener(self, handler: Callable) -> None:
         """Registers a download listener callback for new Telegram messages."""
         if handler not in self._message_handlers:

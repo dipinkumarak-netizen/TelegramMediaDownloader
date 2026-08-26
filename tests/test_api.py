@@ -93,6 +93,23 @@ async def test_auth_setup_and_login_flow(client: AsyncClient, tmp_path):
     assert src_list_resp.status_code == 200
     assert len(src_list_resp.json()) >= 1
 
+    # Batch toggle test
+    batch_payload = {
+        "items": [
+            {
+                "telegram_id": "-100999888777",
+                "title": "Discovered Batch Channel",
+                "username": "batch_channel",
+                "source_type": "CHANNEL",
+                "is_monitored": True,
+                "custom_subfolder": "movies"
+            }
+        ]
+    }
+    batch_resp = await client.post("/api/sources/batch-toggle", json=batch_payload, headers=auth_headers)
+    assert batch_resp.status_code == 200
+    assert batch_resp.json()["status"] == "success"
+
     # Delete source
     src_del_resp = await client.delete(f"/api/sources/{source_id}", headers=auth_headers)
     assert src_del_resp.status_code == 200

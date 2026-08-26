@@ -755,6 +755,116 @@ window.App = (function () {
     }
   }
 
+  // Discovered Sources Component
+  let discoveredSourcesData = [];
+
+  async function openDiscoverSourcesModal() {
+    openModal("discover-sources-modal");
+    await loadDiscoverDialogs();
+  }
+
+  async function loadDiscoverDialogs() {
+    const listContainer = document.getElementById("discover-list-container");
+    const loadingEl = document.getElementById("discover-loading");
+    if (!listContainer || !loadingEl) return;
+
+    listContainer.innerHTML = "";
+    loadingEl.classList.remove("hidden");
+
+    try {
+      const res = await apiCall("/api/sources/discover/all");
+      discoveredSourcesData = res.sources || [];
+      renderDiscoveredSources();
+    } catch (e) {
+      listContainer.innerHTML = `<div class="p-3 text-center text-danger">${escapeHtml(e.message)}</div>`;
+    } finally {
+      loadingEl.classList.add("hidden");
+    }
+  }
+
+  function filterDiscoveredSources() {
+    renderDiscoveredSources();
+  }
+
+  function renderDiscoveredSources() {
+    const listContainer = document.getElementById("discover-list-container");
+    if (!listContainer) return;
+
+    const query = (document.getElementById("discover-search")?.value || "").toLowerCase().trim();
+
+    const filtered = discoveredSourcesData.filter(s => 
+      (s.title || "").toLowerCase().includes(query) ||
+      (s.username || "").toLowerCase().includes(query) ||
+      (s.telegram_id || "").includes(query)
+    );
+
+    const selectedCount = discoveredSourcesData.filter(s => s.is_monitored).length;
+    const cntEl = document.getElementById("discover-selected-count");
+    if (cntEl) cntEl.innerText = `${selectedCount} selected`;
+
+    if (filtered.length === 0) {
+      listContainer.innerHTML = '<div class="p-3 text-center text-muted">No matching Telegram channels or groups found.</div>';
+      return;
+    }
+
+    listContainer.innerHTML = filtered.map(s => {
+      let typeBadge = "badge-info";
+      if (s.source_type === "CHANNEL") typeBadge = "badge-primary";
+      else if (s.source_type === "SUPERGROUP") typeBadge = "badge-success";
+      else if (s.source_type === "GROUP") typeBadge = "badge-warning";
+      else if (s.source_type === "SAVED_MESSAGES") typeBadge = "badge-secondary";
+
+      return `
+        <label class="d-flex align-items-center gap-2 p-2 border-bottom" style="cursor: pointer; user-select: none;">
+          <input type="checkbox" class="form-checkbox" ${s.is_monitored ? 'checked' : ''} onchange="window.App.onDiscoveredCheckboxChange('${escapeHtml(s.telegram_id)}', this.checked)">
+          <div class="flex-grow-1">
+            <strong>${escapeHtml(s.title)}</strong>
+            <span class="badge ${typeBadge} ms-2" style="font-size: 0.7rem;">${escapeHtml(s.source_type)}</span>
+            <small class="text-dim d-block font-mono" style="font-size: 0.75rem;">ID: ${escapeHtml(s.telegram_id)} ${s.username ? `(@${escapeHtml(s.username)})` : ''}</small>
+          </div>
+        </label>
+      `;
+    }).join("");
+  }
+
+  function onDiscoveredCheckboxChange(tid, isChecked) {
+    const item = discoveredSourcesData.find(x => String(x.telegram_id) === String(tid));
+    if (item) {
+      item.is_monitored = isChecked;
+      const count = discoveredSourcesData.filter(x => x.is_monitored).length;
+      const cntEl = document.getElementById("discover-selected-count");
+      if (cntEl) cntEl.innerText = `${count} selected`;
+    }
+  }
+
+  function toggleAllDiscovered(select) {
+    discoveredSourcesData.forEach(s => s.is_monitored = select);
+    renderDiscoveredSources();
+  }
+
+  async function saveBatchDiscoveredSources() {
+    try {
+      showLoading("Saving monitored sources...");
+      const items = discoveredSourcesData.map(s => ({
+        telegram_id: s.telegram_id,
+        title: s.title,
+        username: s.username,
+        source_type: s.source_type,
+        is_monitored: Boolean(s.is_monitored),
+        custom_subfolder: "movies"
+      }));
+
+      const res = await apiCall("/api/sources/batch-toggle", "POST", { items });
+      hideLoading();
+      closeModal("discover-sources-modal");
+      toast(res.message || "Sources updated successfully!", "success");
+      loadSources();
+    } catch (e) {
+      hideLoading();
+      toast(e.message, "error");
+    }
+  }
+
   // View: Jellyfin
   async function loadJellyfin() {
     try {
@@ -986,6 +1096,12 @@ window.App = (function () {
     handleAddSource,
     toggleSource,
     deleteSource,
+    openDiscoverSourcesModal,
+    loadDiscoverDialogs,
+    filterDiscoveredSources,
+    toggleAllDiscovered,
+    onDiscoveredCheckboxChange,
+    saveBatchDiscoveredSources,
     loadJellyfin,
     saveJellyfinConfig,
     testJellyfin,

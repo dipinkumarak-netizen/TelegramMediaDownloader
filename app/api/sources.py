@@ -151,3 +151,86 @@ async def test_resolve_source(payload: TestSourceRequest, admin=Depends(get_curr
         return {"success": True, "data": info}
     except Exception as e:
         return {"success": False, "message": f"Could not resolve Telegram entity: {str(e)}"}
+
+
+@router.get("/discover/all")
+async def discover_sources(admin=Depends(get_current_admin)):
+    """Discovers all channels, supergroups, and groups from the logged-in Telegram account."""
+    if not telegram_service.client or not telegram_service.client.is_connected() or telegram_service.state.value != "CONNECTED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Telegram account is not connected. Please log in to Telegram in the Telegram tab first."
+        )
+
+    try:
+        dialogs = await telegram_service.discover_dialogs()
+        current_sources = await source_manager.get_all_sources()
+        monitored_map = {str(s["telegram_id"]): s for s in current_sources}
+
+        result = []
+        for d in dialogs:
+            tid = str(d["telegram_id"])
+            is_mon = tid in monitored_map
+            src_obj = monitored_map.get(tid)
+            result.append({
+                "telegram_id": tid,
+                "title": d["title"],
+                "username": d["username"],
+                "source_type": d["source_type"],
+                "unread_count": d.get("unread_count", 0),
+                "is_monitored": is_mon,
+                "source_id": src_obj["id"] if src_obj else None,
+                "is_enabled": bool(src_obj["is_enabled"]) if src_obj else False,
+            })
+
+        return {"status": "success", "sources": result}
+    except Exception as e:
+        logger.error(f"Error discovering Telegram sources: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+class BatchSourceItem(BaseModel):
+    telegram_id: str
+    title: str
+    username: str | None = None
+    source_type: str = "CHANNEL"
+    is_monitored: bool = True
+    custom_subfolder: str | None = None
+
+
+class BatchSourceRequest(BaseModel):
+    items: List[BatchSourceItem]
+
+
+@router.post("/batch-toggle")
+async def batch_toggle_sources(payload: BatchSourceRequest, admin=Depends(get_current_admin)):
+    """Adds or enables/disables multiple discovered sources in batch."""
+    current_sources = await source_manager.get_all_sources()
+    monitored_map = {str(s["telegram_id"]): s for s in current_sources}
+
+    added = 0
+    updated = 0
+    for item in payload.items:
+        tid = str(item.telegram_id)
+        if tid in monitored_map:
+            src = monitored_map[tid]
+            await source_manager.update_source(src["id"], SourceUpdate(is_enabled=item.is_monitored))
+            updated += 1
+        elif item.is_monitored:
+            await source_manager.add_source(SourceCreate(
+                telegram_id=tid,
+                title=item.title,
+                username=item.username,
+                source_type=item.source_type,
+                is_enabled=True,
+                download_videos=True,
+                download_documents=True,
+                download_audio=True,
+                download_archives=True,
+                download_images=False,
+                custom_subfolder=item.custom_subfolder or "movies",
+            ))
+            added += 1
+
+    return {"status": "success", "message": f"Successfully updated sources ({added} added, {updated} updated)."}
+

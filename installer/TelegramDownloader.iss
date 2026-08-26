@@ -61,3 +61,16 @@ Filename: "http://localhost:8787"; Description: "Open Telegram Downloader Dashbo
 ; Stop and remove Windows Service prior to removing files
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--stop-service"; Flags: runhidden waituntilterminated
 Filename: "{app}\{#MyAppExeName}"; Parameters: "--remove-service"; Flags: runhidden waituntilterminated
+
+[UninstallDelete]
+Type: filesandordirs; Name: "{commonappdata}\TelegramDownloader"
+
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    // Ensure all data, database, sessions, and configuration are purged for clean reinstallation
+    DelTree(ExpandConstant('{commonappdata}\TelegramDownloader'), True, True, True);
+  end;
+end;

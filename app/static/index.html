@@ -238,6 +238,41 @@
     </div>
   </div>
 
+  <!-- Discover Sources Modal -->
+  <div id="discover-sources-modal" class="modal-overlay hidden">
+    <div class="modal-card modal-card-lg" style="max-width: 680px;">
+      <div class="modal-header">
+        <div>
+          <h3>🔍 Discover Telegram Channels & Groups</h3>
+          <p class="text-muted text-sm" style="margin:2px 0 0;">Select channels and groups from your Telegram account to monitor.</p>
+        </div>
+        <button class="close-btn" onclick="window.App.closeModal('discover-sources-modal')">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px 20px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+          <input type="text" id="discover-search" class="form-input" placeholder="🔍 Search channels and groups..." style="flex:1; min-width: 200px;" oninput="window.App.filterDiscoveredSources()">
+          <button class="btn btn-sm btn-secondary" onclick="window.App.loadDiscoverDialogs()">🔄 Refresh</button>
+          <button class="btn btn-sm btn-secondary" onclick="window.App.toggleAllDiscovered(true)">Select All</button>
+          <button class="btn btn-sm btn-secondary" onclick="window.App.toggleAllDiscovered(false)">Clear All</button>
+        </div>
+        <div id="discover-loading" class="text-center py-4 hidden">
+          <div class="spinner" style="margin: 0 auto 8px;"></div>
+          <p class="text-muted">Fetching your Telegram channels and groups...</p>
+        </div>
+        <div id="discover-list-container" class="discover-list-box" style="max-height: 340px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 6px; background: rgba(0,0,0,0.15);">
+          <!-- Dynamically populated dialog items -->
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <span id="discover-selected-count" class="text-muted text-sm">0 selected</span>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-secondary" onclick="window.App.closeModal('discover-sources-modal')">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="window.App.saveBatchDiscoveredSources()">Save Monitored Sources</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Telegram OTP / 2FA Modal -->
   <div id="tg-auth-modal" class="modal-overlay hidden">
     <div class="modal-card">
@@ -567,7 +602,10 @@
           <div class="card">
             <div class="card-header">
               <h3>Monitored Telegram Channels & Groups</h3>
-              <button class="btn btn-primary btn-sm" onclick="window.App.openModal('add-source-modal')">+ Add Source</button>
+              <div class="header-actions" style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" onclick="window.App.openDiscoverSourcesModal()">🔍 Discover Channels & Groups</button>
+                <button class="btn btn-primary btn-sm" onclick="window.App.openModal('add-source-modal')">+ Add Manual Source</button>
+              </div>
             </div>
             <div class="card-body">
               <p class="text-muted">The application monitors these sources and automatically queues incoming media according to your filter rules.</p>
